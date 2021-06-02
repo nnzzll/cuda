@@ -1,5 +1,5 @@
 # CUDA入门教程
-**原文链接**:[An Even Easier Introduction to CUDA
+**参考链接**:[An Even Easier Introduction to CUDA
 ](https://developer.nvidia.com/blog/even-easier-introduction-cuda/)
 
 # C++编程与CUDA编程的对比
@@ -89,4 +89,33 @@ GPU运算耗时`1.4742ms`,比单线程快了86倍！
 - 一个SM包含了多个`Grid`,并且可以多个`SM`并行执行
 - 一个`Grid`中有$2^{32}$个`Block`
 - 一个`Block`中有$2^{10}$个`Thread`
-### 计算
+
+编译并运行`cuda_proc.cu`,可以查看相关属性
+
+    GPU num:1
+    Max threads/block:1024
+    Max threads/SM:1024
+    Max block/SM:16
+    Max Grid size:2147483647,65535,65535
+
+
+现在我们有N次计算,我们打算直接调用N个线程,那就需要计算`block`的数量
+```cpp
+int blockSize = 256;
+int numBlocks = (N+blocksize-1)/blockSize;
+add<<<numBlocks,blockSize>>>(N,x,y)
+```
+![Alt text](https://developer-blogs.nvidia.com/wp-content/uploads/2017/01/cuda_indexing.png)
+同样的,在核函数中我们需要修改循环的**起始索引**与**步长**：
+以上图为例,`blockIdx`是`block`在一个`grid`中的索引,`blockDim`即为一个`block`所包含的`thread`数量,`threadIdx`则为`thread`在当前`block`中的索引
+- 因此在核函数中,`thread`的索引`index`为`blockIdx.x*blockDim.x+threadIdx.x`
+- 步长的设置采用[*grid-stride-loop*](https://developer.nvidia.com/blog/cuda-pro-tip-write-flexible-kernels-grid-stride-loops/),即步长为一个`grid`中所有的`thread`
+    ```cpp
+    int stride = blockDim.x * gridDim.x;
+    ```
+
+编译并运行`add_block.cu`
+
+    GPU activities:  100.00%  23.776us         1  23.776us  23.776us  23.776us  add(int, float*, float*)
+
+这次的耗时仅为`23.776us`
